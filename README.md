@@ -35,6 +35,7 @@ src/
     passes.ts          # 90s coarse 스캔 + 이분법(tol 1s) AOS/LOS, TCA/최대앙각
     passes.worker.ts   # 패스 계산 Web Worker (PassRequest → PassResponse)
     groundtrack.ts     # ±45분 트랙 + antimeridian(±180°) 분할
+    sun.ts             # 저정밀 태양 역서 — 직하점/대일점, 낮/밤 터미네이터용
     earthTexture.ts    # world-atlas를 d3-geo로 캔버스에 그려 지구 텍스처 생성(외부 이미지 無)
     seed.ts            # ISS TLE + 서울 지상국 시드 (scripts/verify-tle.mjs로 체크섬 검증)
   store/        # satellites / groundStations / timeControl 슬라이스
@@ -54,4 +55,7 @@ src/
 - **패스 계산**: Web Worker로 오프로드, 계산 중 스피너. 시뮬레이션 시각이 창을
   크게 벗어나면 10분 격자 기준으로 창을 이동해 재계산.
 - **SGP4 신뢰 한계**: 표시 위성의 epoch에서 ±7일 초과 시 경고 배너.
+- **낮/밤 구역**: 저정밀 태양 역서(Meeus 근사)로 직하점을 구해 2D 지도에는
+  대일점 중심 반경 90° 소원(geoCircle)을 밤 반구로 오버레이 + 태양 마커,
+  3D 지구는 태양 ECI 방향의 DirectionalLight로 주야 음영을 표현.
 - 선택 기능 구현: 3D 지상국-위성 LOS 라인(가시 시에만), 패스 CSV 내보내기.

@@ -4,11 +4,12 @@
  * ±180° 경계에서 트랙 폴리라인을 분할해 가짜 가로선을 방지한다.
  */
 import { useMemo } from 'react';
-import { geoEquirectangular, geoPath, geoGraticule10 } from 'd3-geo';
+import { geoEquirectangular, geoPath, geoGraticule10, geoCircle } from 'd3-geo';
 import type { GroundStation, Satellite } from '../types';
 import { computeGroundTrack, type LonLat } from '../lib/groundtrack';
 import { propagate } from '../lib/propagator';
 import { eciToGeodetic } from '../lib/coordinates';
+import { antisolarPoint, subsolarPoint } from '../lib/sun';
 import { getLandFeatures } from '../lib/worldMap';
 import { useTimeStore } from '../store/timeControl';
 import { MS_PER_SEC } from '../lib/constants';
@@ -57,6 +58,19 @@ export default function GroundTrack2D({ satellites, stations }: Props) {
     return { land, graticule };
   }, []);
 
+  // 낮/밤 구역: 밤 반구 = 대일점(antisolar point) 중심 반경 90° 소원(spherical circle)
+  const night = useMemo(() => {
+    const anti = antisolarPoint(quantizedMs);
+    const sub = subsolarPoint(quantizedMs);
+    const nightCircle = geoCircle()
+      .center([anti.lon_deg, anti.lat_deg])
+      .radius(90)();
+    return {
+      path: geoPath(projection)(nightCircle) ?? '',
+      sunXY: project([sub.lon_deg, sub.lat_deg]),
+    };
+  }, [quantizedMs]);
+
   const tracks = useMemo(
     () =>
       satellites.map((sat) => ({
@@ -89,6 +103,13 @@ export default function GroundTrack2D({ satellites, stations }: Props) {
           strokeOpacity={0.35}
           strokeWidth={0.6}
         />
+
+        {/* 밤 반구 오버레이 + 태양 직하점 */}
+        <path d={night.path} fill="#020617" fillOpacity={0.45} data-testid="night-overlay" />
+        <g transform={`translate(${night.sunXY[0]},${night.sunXY[1]})`} data-testid="sun-marker">
+          <circle r={7} fill="#fde047" fillOpacity={0.9} />
+          <circle r={11} fill="none" stroke="#fde047" strokeOpacity={0.5} />
+        </g>
 
         {tracks.map(({ sat, path }) => (
           <path

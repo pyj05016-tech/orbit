@@ -17,6 +17,7 @@ import {
 } from '../lib/constants';
 import { propagate, orbitalPeriodSec } from '../lib/propagator';
 import { gmstAt, geodeticToEcf, eciToLookAngles } from '../lib/coordinates';
+import { sunPosition } from '../lib/sun';
 import { useTimeStore } from '../store/timeControl';
 import { createEarthCanvas } from '../lib/earthTexture';
 
@@ -127,8 +128,10 @@ export default function Globe3D({ satellites, stations }: Props) {
     controls.minDistance = EARTH_RADIUS_UNITS * 1.2;
     controls.maxDistance = 120;
 
-    scene.add(new THREE.AmbientLight(0xffffff, 1.1));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+    // 태양 방향 조명 — 밤면이 어두워지도록 ambient는 낮게 유지.
+    // 위치는 프레임 루프에서 sunPosition(simTime)으로 매 프레임 갱신된다.
+    scene.add(new THREE.AmbientLight(0xffffff, 0.25));
+    const sun = new THREE.DirectionalLight(0xffffff, 2.6);
     sun.position.set(50, 20, 30);
     scene.add(sun);
 
@@ -173,6 +176,10 @@ export default function Globe3D({ satellites, stations }: Props) {
       const simTimeMs = useTimeStore.getState().simTimeMs;
       const gmst = gmstAt(simTimeMs);
       earthGroup.rotation.y = gmst;
+
+      // 태양 방향으로 조명 이동 (ECI 단위벡터 → three 좌표)
+      const sunEci = sunPosition(simTimeMs).eciUnit;
+      sun.position.set(sunEci.x * 100, sunEci.z * 100, -sunEci.y * 100);
 
       // 위성 위치 갱신 (전파: 위성당 프레임당 1회)
       const eciBySat = new Map<string, { x: number; y: number; z: number }>();
